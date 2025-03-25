@@ -7,23 +7,24 @@ import threading
 import time
 import logging
 
-# Configuración de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("autotyper.log"),
-        logging.StreamHandler()
-    ]
-)
-
 class AutoTyperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoTipeador PHP 5.0")
-        self.root.geometry("500x350")
+        self.root.geometry("500x400")  # Ajustamos tamaño para el nuevo elemento
         
         self.file_path = None
+        
+        # Configuración inicial de logging
+        self.logger = logging.getLogger()
+        self.log_handler = logging.FileHandler("autotyper.log")
+        self.console_handler = logging.StreamHandler()
+        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        self.log_handler.setFormatter(self.formatter)
+        self.console_handler.setFormatter(self.formatter)
+        self.logger.addHandler(self.log_handler)
+        self.logger.addHandler(self.console_handler)
+        self.logger.setLevel(logging.INFO)
         
         # Interfaz gráfica
         self.frame = tk.Frame(root, padx=20, pady=20)
@@ -42,8 +43,28 @@ class AutoTyperApp:
                                    bg="#2196F3", fg="white")
         self.btn_iniciar.pack(pady=20)
         
+        # Checkbox para habilitar/deshabilitar log
+        self.log_var = tk.BooleanVar(value=False)
+        self.chk_log = tk.Checkbutton(self.frame, text="Habilitar registro (log)", 
+                                    variable=self.log_var, command=self.toggle_logging,
+                                    fg="#009688")
+        self.chk_log.pack(pady=5)
+        
         self.lbl_estado = tk.Label(self.frame, text="", fg="#009688")
         self.lbl_estado.pack()
+
+    def toggle_logging(self):
+        """Habilita o deshabilita el registro según el estado del checkbox"""
+        if self.log_var.get():
+            self.logger.setLevel(logging.INFO)
+            self.log_handler.setLevel(logging.INFO)
+            self.console_handler.setLevel(logging.INFO)
+            logging.info("Registro habilitado")
+        else:
+            self.logger.setLevel(logging.CRITICAL)
+            self.log_handler.setLevel(logging.CRITICAL)
+            self.console_handler.setLevel(logging.CRITICAL)
+            logging.critical("Registro deshabilitado")
 
     def seleccionar_archivo(self):
         try:
@@ -99,6 +120,7 @@ class AutoTyperApp:
         except Exception as e:
             logging.error(f"Error al escribir caracter: {char}", exc_info=True)
             raise
+
     def proceso_tipeo(self):
         try:
             logging.info("Iniciando proceso de tipeo automático")
