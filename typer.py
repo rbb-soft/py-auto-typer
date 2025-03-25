@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, scrolledtext
 import pyautogui
 import keyboard  
 import threading
@@ -11,65 +11,127 @@ class AutoTyperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoTipeador PHP 5.0")
-        self.root.geometry("600x450")  # Ajustamos tamaño para nuevos elementos
+        self.root.geometry("650x550")
         
+        self.input_mode = tk.StringVar(value="text")  # 'file' o 'text'
         self.file_path = None
         
-        # Configuración inicial de logging
+        # Configuración logging
         self.logger = logging.getLogger()
         self.log_handler = logging.FileHandler("autotyper.log")
         self.console_handler = logging.StreamHandler()
-        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        self.log_handler.setFormatter(self.formatter)
-        self.console_handler.setFormatter(self.formatter)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        self.log_handler.setFormatter(formatter)
+        self.console_handler.setFormatter(formatter)
         self.logger.addHandler(self.log_handler)
         self.logger.addHandler(self.console_handler)
         self.logger.setLevel(logging.INFO)
         
-        # Interfaz gráfica
+        # Interfaz
         self.frame = tk.Frame(root, padx=20, pady=20)
         self.frame.pack(padx=10, pady=10)
         
-        self.btn_seleccionar = tk.Button(self.frame, text="Seleccionar archivo", 
-                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"))
-        self.btn_seleccionar.pack(pady=10)
+        # Selector de modo
+        self.mode_frame = tk.LabelFrame(self.frame, text="Modo de entrada", padx=10, pady=10)
+        self.mode_frame.pack(pady=10, fill="x")
         
-        self.lbl_archivo = tk.Label(self.frame, text="Ningún archivo seleccionado", 
-                                  wraplength=400, fg="#666", font=("Arial", 10, "bold"))
+        self.radio_file = tk.Radiobutton(self.mode_frame, text="Desde archivo", 
+                                       variable=self.input_mode, value="file",
+                                       command=self.toggle_input_mode)
+        self.radio_file.grid(row=0, column=0, padx=10)
+        
+        self.radio_text = tk.Radiobutton(self.mode_frame, text="Texto manual", 
+                                       variable=self.input_mode, value="text",
+                                       command=self.toggle_input_mode)
+        self.radio_text.grid(row=0, column=1, padx=10)
+        
+        # Contenedor de entrada
+        self.input_container = tk.Frame(self.frame)
+        self.input_container.pack(pady=10, fill="both", expand=True)
+        
+        # Modo archivo
+        self.file_frame = tk.Frame(self.input_container)
+        self.btn_seleccionar = tk.Button(self.file_frame, text="Seleccionar archivo", 
+                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white")
+        self.btn_seleccionar.pack(pady=5)
+        
+        self.lbl_archivo = tk.Label(self.file_frame, text="Ningún archivo seleccionado", fg="#666")
         self.lbl_archivo.pack(pady=5)
         
-        # Nuevos campos para tiempo e intervalo
+        # Modo texto
+        self.text_frame = tk.Frame(self.input_container)
+        self.text_area = scrolledtext.ScrolledText(self.text_frame, wrap=tk.WORD, 
+                                                  width=60, height=10)
+        self.text_area.pack(padx=5, pady=5)
+        self.text_area.bind("<KeyRelease>", self.check_text_input)
+        self.text_area.bind("<ButtonRelease>", self.check_text_input)  # Detectar pegado con mouse
+        
+        # Opciones de tiempo
         self.frame_opciones = tk.Frame(self.frame)
         self.frame_opciones.pack(pady=15)
         
         vcmd = (self.root.register(self.validate_number), '%P')
         
-        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):", fg="#333", font=("Arial", 10, "bold"))
+        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):")
         self.lbl_inicio.grid(row=0, column=0, padx=5)
         self.entry_inicio = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
         self.entry_inicio.insert(0, "5")
         self.entry_inicio.grid(row=0, column=1, padx=5)
         
-        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):", fg="#333", font=("Arial", 10, "bold"))
+        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):")
         self.lbl_intervalo.grid(row=0, column=2, padx=5)
         self.entry_intervalo = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
         self.entry_intervalo.insert(0, "0.03")
         self.entry_intervalo.grid(row=0, column=3, padx=5)
         
+        # Botón iniciar
         self.btn_iniciar = tk.Button(self.frame, text="Iniciar tipeo", 
                                    command=self.iniciar_tipeo, state=tk.DISABLED,
-                                   bg="#2196F3", fg="white", font=("Arial", 10, "bold") )
+                                   bg="#2196F3", fg="white")
         self.btn_iniciar.pack(pady=20)
         
-        # Checkbox para habilitar/deshabilitar log
+        # Checkbox logging
         self.log_var = tk.BooleanVar(value=False)
         self.chk_log = tk.Checkbutton(self.frame, text="Habilitar registro (log)", 
-                                    variable=self.log_var, command=self.toggle_logging,
-                                    fg="#009688", font=("Arial", 10, "bold"))
+                                    variable=self.log_var, command=self.toggle_logging)
         self.chk_log.pack(pady=5)
         
-        self.lbl_estado = tk.Label(self.frame, text="", fg="#009688", font=("Arial", 10, "bold"))
+        self.lbl_estado = tk.Label(self.frame, text="", fg="#009688")
         self.lbl_estado.pack()
+        
+        # Inicialización
+        self.toggle_input_mode()
+
+    def toggle_input_mode(self):
+        mode = self.input_mode.get()
+        
+        # Ocultar todos
+        self.file_frame.pack_forget()
+        self.text_frame.pack_forget()
+        
+        if mode == "file":
+            self.file_frame.pack(fill="x")
+            self.text_area.config(state=tk.DISABLED)
+            self.btn_seleccionar.config(state=tk.NORMAL)
+        else:
+            self.text_frame.pack(fill="both", expand=True)
+            self.text_area.config(state=tk.NORMAL)
+            self.btn_seleccionar.config(state=tk.DISABLED)
+        
+        self.check_input_validity()
+
+    def check_text_input(self, event=None):
+        if self.input_mode.get() == "text":
+            self.check_input_validity()
+
+    def check_input_validity(self):
+        valid = False
+        if self.input_mode.get() == "file":
+            valid = self.file_path is not None
+        else:
+            valid = len(self.text_area.get("1.0", tk.END).strip()) > 0
+        
+        self.btn_iniciar.config(state=tk.NORMAL if valid else tk.DISABLED)
 
     def validate_number(self, value):
         if value == "":
@@ -81,57 +143,74 @@ class AutoTyperApp:
             return False
 
     def toggle_logging(self):
-        """Habilita o deshabilita el registro según el estado del checkbox"""
-        if self.log_var.get():
-            self.logger.setLevel(logging.INFO)
-            self.log_handler.setLevel(logging.INFO)
-            self.console_handler.setLevel(logging.INFO)
-            logging.info("Registro habilitado")
-        else:
-            self.logger.setLevel(logging.CRITICAL)
-            self.log_handler.setLevel(logging.CRITICAL)
-            self.console_handler.setLevel(logging.CRITICAL)
-            logging.critical("Registro deshabilitado")
+        level = logging.INFO if self.log_var.get() else logging.CRITICAL
+        self.logger.setLevel(level)
+        self.log_handler.setLevel(level)
+        self.console_handler.setLevel(level)
+        logging.log(level, f"Registro {'habilitado' if level == logging.INFO else 'deshabilitado'}")
 
     def seleccionar_archivo(self):
         try:
-            path = filedialog.askopenfilename(filetypes=[("Archivos", "*.*")])
+            path = filedialog.askopenfilename()
             if path:
                 self.file_path = path
-                logging.info(f"Archivo seleccionado: {path}")
                 self.lbl_archivo.config(text=f"Archivo: {path}")
-                self.btn_iniciar.config(state=tk.NORMAL)
+                self.check_input_validity()
             else:
-                logging.warning("Selección cancelada por usuario")
-                messagebox.showwarning("Advertencia", "No se seleccionó archivo")
+                self.lbl_archivo.config(text="Ningún archivo seleccionado")
         except Exception as e:
-            logging.error("Error al seleccionar archivo", exc_info=True)
             messagebox.showerror("Error", f"Error al seleccionar archivo:\n{str(e)}")
 
     def iniciar_tipeo(self):
-        if not self.file_path:
-            error = "Primero selecciona un archivo válido"
-            logging.error(error)
-            messagebox.showerror("Error", error)
-            return 
-            
-        try:
-            self.start_delay = float(self.entry_inicio.get())
-            self.action_interval = float(self.entry_intervalo.get())
-        except ValueError:
-            messagebox.showerror("Error", "Por favor ingresa números válidos en las opciones de tiempo")
-            return
-        
         self.btn_iniciar.config(state=tk.DISABLED)
-        self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {self.start_delay} segundos...")
+        self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {self.entry_inicio.get()} segundos...")
         
         hilo = threading.Thread(target=self.proceso_tipeo)
         hilo.daemon = True
         hilo.start()
-    
+
+    def proceso_tipeo(self):
+        try:
+            # Obtener contenido
+            if self.input_mode.get() == "file":
+                if not self.file_path:
+                    raise ValueError("Archivo no seleccionado")
+                with open(self.file_path, 'r', encoding='utf-8') as f:
+                    contenido = f.read()
+            else:
+                contenido = self.text_area.get("1.0", tk.END).strip()
+            
+            lineas = contenido.splitlines()
+            total_lineas = len(lineas)
+            
+            # Configuración tiempos
+            start_delay = float(self.entry_inicio.get())
+            action_interval = float(self.entry_intervalo.get())
+            
+            logging.info(f"Iniciando tipeo automático en {start_delay} segundos")
+            time.sleep(start_delay)
+            
+            self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 👨💻"})
+            
+            for num_linea, linea in enumerate(lineas, 1):
+                logging.debug(f"Escribiendo línea {num_linea}/{total_lineas}")
+                for char in linea:
+                    self.tipo_caracter_especial(char)
+                    time.sleep(action_interval)
+                pyautogui.press('enter', interval=0.8)
+            
+            logging.info("Tipeo finalizado exitosamente")
+            self.root.after(0, self.lbl_estado.config, {"text": "¡Tipeo finalizado!"})
+            self.root.after(2000, self.lbl_estado.config, {"text": ""})
+            self.root.after(0, self.btn_iniciar.config, {"state": tk.NORMAL})
+            
+        except Exception as e:
+            logging.error("Error durante el tipeo", exc_info=True)
+            messagebox.showerror("Error", f"Ocurrió un error:\n{str(e)}")
+            self.restablecer()
+
     def tipo_caracter_especial(self, char):
         try:
-            # Mapeo universal usando códigos de teclado
             key_map = {
                 '#': 'shift+3',
                 '{': 'shift+[',
@@ -143,55 +222,13 @@ class AutoTyperApp:
             }
             
             if char in key_map:
-                keyboard.write(char, delay=0.03)
+                keyboard.write(char, delay=0.01)
             else:
                 pyautogui.write(char)
                 
-            time.sleep(self.action_interval)
-            
         except Exception as e:
             logging.error(f"Error al escribir caracter: {char}", exc_info=True)
             raise
-
-    def proceso_tipeo(self):
-        try:
-            logging.info("Iniciando proceso de tipeo automático")
-            
-            # Conteo regresivo
-            start_time = time.time()
-            while time.time() - start_time < self.start_delay:
-                remaining = self.start_delay - (time.time() - start_time)
-                self.root.after(0, self.lbl_estado.config, {"text": f"Comenzando en {remaining:.1f} segundos..."})
-                time.sleep(0.1)
-            
-            # Leer archivo
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                contenido = f.read()
-            
-            # Preparar contenido para escritura
-            lineas = contenido.splitlines()
-            total_lineas = len(lineas)
-            
-            self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 👨💻"})
-            logging.info(f"Iniciando escritura de {total_lineas} líneas")
-            
-            for num_linea, linea in enumerate(lineas, 1):
-                logging.debug(f"Escribiendo línea {num_linea}/{total_lineas}")
-                for char in linea:
-                    self.tipo_caracter_especial(char)
-                pyautogui.press('enter')
-                time.sleep(1)
-            
-            # Finalizar
-            logging.info("Tipeo finalizado exitosamente")
-            self.root.after(0, self.lbl_estado.config, {"text": "¡Tipeo finalizado!"})
-            self.root.after(2000, self.lbl_estado.config, {"text": ""})
-            self.root.after(0, self.btn_iniciar.config, {"state": tk.NORMAL})
-            
-        except Exception as e:
-            logging.error("Error durante el tipeo", exc_info=True)
-            messagebox.showerror("Error", f"Ocurrió un error:\n{str(e)}")
-            self.restablecer()
 
     def restablecer(self):
         self.root.after(0, self.lbl_estado.config, {"text": ""})
