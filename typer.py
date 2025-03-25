@@ -11,7 +11,7 @@ class AutoTyperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoTipeador PHP 5.0")
-        self.root.geometry("500x400")  # Ajustamos tamaño para el nuevo elemento
+        self.root.geometry("600x450")  # Ajustamos tamaño para nuevos elementos
         
         self.file_path = None
         
@@ -38,6 +38,24 @@ class AutoTyperApp:
                                   wraplength=400, fg="#666")
         self.lbl_archivo.pack(pady=5)
         
+        # Nuevos campos para tiempo e intervalo
+        self.frame_opciones = tk.Frame(self.frame)
+        self.frame_opciones.pack(pady=15)
+        
+        vcmd = (self.root.register(self.validate_number), '%P')
+        
+        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):", fg="#333", font=("Arial", 10, "bold"))
+        self.lbl_inicio.grid(row=0, column=0, padx=5)
+        self.entry_inicio = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
+        self.entry_inicio.insert(0, "5")
+        self.entry_inicio.grid(row=0, column=1, padx=5)
+        
+        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):", fg="#333", font=("Arial", 10, "bold"))
+        self.lbl_intervalo.grid(row=0, column=2, padx=5)
+        self.entry_intervalo = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
+        self.entry_intervalo.insert(0, "0.03")
+        self.entry_intervalo.grid(row=0, column=3, padx=5)
+        
         self.btn_iniciar = tk.Button(self.frame, text="Iniciar tipeo", 
                                    command=self.iniciar_tipeo, state=tk.DISABLED,
                                    bg="#2196F3", fg="white")
@@ -52,6 +70,15 @@ class AutoTyperApp:
         
         self.lbl_estado = tk.Label(self.frame, text="", fg="#009688")
         self.lbl_estado.pack()
+
+    def validate_number(self, value):
+        if value == "":
+            return True
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
 
     def toggle_logging(self):
         """Habilita o deshabilita el registro según el estado del checkbox"""
@@ -87,9 +114,16 @@ class AutoTyperApp:
             logging.error(error)
             messagebox.showerror("Error", error)
             return 
-             
+            
+        try:
+            self.start_delay = float(self.entry_inicio.get())
+            self.action_interval = float(self.entry_intervalo.get())
+        except ValueError:
+            messagebox.showerror("Error", "Por favor ingresa números válidos en las opciones de tiempo")
+            return
+        
         self.btn_iniciar.config(state=tk.DISABLED)
-        self.lbl_estado.config(text="¡Prepárate! Comenzando en 5 segundos...")
+        self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {self.start_delay} segundos...")
         
         hilo = threading.Thread(target=self.proceso_tipeo)
         hilo.daemon = True
@@ -105,17 +139,14 @@ class AutoTyperApp:
                 ']': ']',
                 '<': 'shift+,',
                 '>': 'shift+.',
-                # Mantén los mapeos anteriores que sí funcionaban
             }
             
             if char in key_map:
-                # Modo de escritura especial para caracteres problemáticos
                 keyboard.write(char, delay=0.03)
             else:
-                # Método tradicional para el resto
                 pyautogui.write(char)
                 
-            time.sleep(0.01)
+            time.sleep(self.action_interval)
             
         except Exception as e:
             logging.error(f"Error al escribir caracter: {char}", exc_info=True)
@@ -126,9 +157,11 @@ class AutoTyperApp:
             logging.info("Iniciando proceso de tipeo automático")
             
             # Conteo regresivo
-            for i in range(5, 0, -1):
-                self.root.after(0, self.lbl_estado.config, {"text": f"Comenzando en {i}..."})
-                time.sleep(1)
+            start_time = time.time()
+            while time.time() - start_time < self.start_delay:
+                remaining = self.start_delay - (time.time() - start_time)
+                self.root.after(0, self.lbl_estado.config, {"text": f"Comenzando en {remaining:.1f} segundos..."})
+                time.sleep(0.1)
             
             # Leer archivo
             with open(self.file_path, 'r', encoding='utf-8') as f:
@@ -146,7 +179,7 @@ class AutoTyperApp:
                 for char in linea:
                     self.tipo_caracter_especial(char)
                 pyautogui.press('enter')
-                time.sleep(1)
+                time.sleep(self.action_interval)
             
             # Finalizar
             logging.info("Tipeo finalizado exitosamente")
