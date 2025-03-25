@@ -2,7 +2,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 import pyautogui
-import keyboard  
 import threading
 import time
 import logging
@@ -32,7 +31,7 @@ class AutoTyperApp:
         self.frame.pack(padx=10, pady=10)
         
         # Selector de modo
-        self.mode_frame = tk.LabelFrame(self.frame, text="Modo de entrada", padx=10, pady=10)
+        self.mode_frame = tk.LabelFrame(self.frame, text="Modo de entrada", padx=10, pady=10,font=('Arial', 12))
         self.mode_frame.pack(pady=10, fill="x")
         
         self.radio_file = tk.Radiobutton(self.mode_frame, text="Desde archivo", 
@@ -52,10 +51,10 @@ class AutoTyperApp:
         # Modo archivo
         self.file_frame = tk.Frame(self.input_container)
         self.btn_seleccionar = tk.Button(self.file_frame, text="Seleccionar archivo", 
-                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white")
+                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white",font=('Arial', 12))
         self.btn_seleccionar.pack(pady=5)
         
-        self.lbl_archivo = tk.Label(self.file_frame, text="Ningún archivo seleccionado", fg="#666")
+        self.lbl_archivo = tk.Label(self.file_frame, text="Ningún archivo seleccionado", fg="#666",font=('Arial', 12))
         self.lbl_archivo.pack(pady=5)
         
         # Modo texto
@@ -72,13 +71,13 @@ class AutoTyperApp:
         
         vcmd = (self.root.register(self.validate_number), '%P')
         
-        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):")
+        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):",font=('Arial', 12))
         self.lbl_inicio.grid(row=0, column=0, padx=5)
         self.entry_inicio = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
         self.entry_inicio.insert(0, "5")
         self.entry_inicio.grid(row=0, column=1, padx=5)
         
-        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):")
+        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):",font=('Arial', 12))
         self.lbl_intervalo.grid(row=0, column=2, padx=5)
         self.entry_intervalo = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
         self.entry_intervalo.insert(0, "0.03")
@@ -87,13 +86,13 @@ class AutoTyperApp:
         # Botón iniciar
         self.btn_iniciar = tk.Button(self.frame, text="Iniciar tipeo", 
                                    command=self.iniciar_tipeo, state=tk.DISABLED,
-                                   bg="#2196F3", fg="white")
+                                   bg="#2196F3", fg="black",font=('Arial', 12))
         self.btn_iniciar.pack(pady=20)
         
         # Checkbox logging
         self.log_var = tk.BooleanVar(value=False)
         self.chk_log = tk.Checkbutton(self.frame, text="Habilitar registro (log)", 
-                                    variable=self.log_var, command=self.toggle_logging)
+                                    variable=self.log_var, command=self.toggle_logging,font=('Arial', 12))
         self.chk_log.pack(pady=5)
         
         self.lbl_estado = tk.Label(self.frame, text="", fg="#009688")
@@ -210,22 +209,42 @@ class AutoTyperApp:
             self.restablecer()
 
     def tipo_caracter_especial(self, char):
+        #print(pyautogui.KEYBOARD_KEYS)
+        mapeo = {
+            '!': (['shift'], '1'),
+            '"': (['shift'], '2'),
+            '=': (['shift'], '0'),
+            ';': (['shift'], ','),
+            '(': (['shift'], '8'),
+            ')': (['shift'], '9'),
+            '$': (['shift'], '4'),
+            '?': (['shift'], "/"),
+            ':': (['shift'], '.'),
+            '_': (['shift'], '-')
+        }
+        
         try:
-            key_map = {
-                '#': 'shift+3',
-                '{': 'shift+[',
-                '}': 'shift+]',
-                '[': '[',
-                ']': ']',
-                '<': 'shift+,',
-                '>': 'shift+.',
-            }
-            
-            if char in key_map:
-                keyboard.write(char, delay=0.01)
+            if char in mapeo:
+                modificadores, tecla = mapeo[char]
+                
+                # Presionar modificadores en orden
+                for mod in modificadores:
+                    pyautogui.keyDown(mod)
+                    time.sleep(0.15)  # Delay necesario para registrar cada tecla
+                
+                # Presionar tecla principal
+                pyautogui.press(tecla)
+                time.sleep(0.15)
+                
+                # Soltar modificadores en orden inverso
+                for mod in reversed(modificadores):
+                    pyautogui.keyUp(mod)
+                    time.sleep(0.01)
             else:
                 pyautogui.write(char)
                 
+            time.sleep(0.03)
+            
         except Exception as e:
             logging.error(f"Error al escribir caracter: {char}", exc_info=True)
             raise

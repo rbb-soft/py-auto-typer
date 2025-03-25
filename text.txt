@@ -1,0 +1,13 @@
+< menor
+> mayor
+{ llave abre
+} llave cierra
+[ corchete abre
+] corchete cierra
+? interrogacion
+" comillas dobles
+' comillas simples
+/ barra
+\ barra invertida
+$ pesos
+
