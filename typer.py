@@ -31,11 +31,11 @@ class AutoTyperApp:
         self.frame.pack(padx=10, pady=10)
         
         self.btn_seleccionar = tk.Button(self.frame, text="Seleccionar archivo", 
-                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white")
+                                       command=self.seleccionar_archivo, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"))
         self.btn_seleccionar.pack(pady=10)
         
         self.lbl_archivo = tk.Label(self.frame, text="Ningún archivo seleccionado", 
-                                  wraplength=400, fg="#666")
+                                  wraplength=400, fg="#666", font=("Arial", 10, "bold"))
         self.lbl_archivo.pack(pady=5)
         
         # Nuevos campos para tiempo e intervalo
@@ -58,17 +58,17 @@ class AutoTyperApp:
         
         self.btn_iniciar = tk.Button(self.frame, text="Iniciar tipeo", 
                                    command=self.iniciar_tipeo, state=tk.DISABLED,
-                                   bg="#2196F3", fg="white")
+                                   bg="#2196F3", fg="white", font=("Arial", 10, "bold") )
         self.btn_iniciar.pack(pady=20)
         
         # Checkbox para habilitar/deshabilitar log
         self.log_var = tk.BooleanVar(value=False)
         self.chk_log = tk.Checkbutton(self.frame, text="Habilitar registro (log)", 
                                     variable=self.log_var, command=self.toggle_logging,
-                                    fg="#009688")
+                                    fg="#009688", font=("Arial", 10, "bold"))
         self.chk_log.pack(pady=5)
         
-        self.lbl_estado = tk.Label(self.frame, text="", fg="#009688")
+        self.lbl_estado = tk.Label(self.frame, text="", fg="#009688", font=("Arial", 10, "bold"))
         self.lbl_estado.pack()
 
     def validate_number(self, value):
@@ -133,6 +133,7 @@ class AutoTyperApp:
         try:
             # Mapeo universal usando códigos de teclado
             key_map = {
+                '#': 'shift+3',
                 '{': 'shift+[',
                 '}': 'shift+]',
                 '[': '[',
@@ -179,7 +180,7 @@ class AutoTyperApp:
                 for char in linea:
                     self.tipo_caracter_especial(char)
                 pyautogui.press('enter')
-                time.sleep(self.action_interval)
+                time.sleep(1)
             
             # Finalizar
             logging.info("Tipeo finalizado exitosamente")
