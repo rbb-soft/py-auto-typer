@@ -17,4 +17,11 @@ _ guion bajo
 ( parentesis abre
 ) parentesis cierra
 = igual
+# numeral
+á a
+é e
+í i
+ó o
+ú u
+ñ enie
 
