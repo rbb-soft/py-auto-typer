@@ -211,15 +211,12 @@ class AutoTyperApp:
     def tipo_caracter_especial(self, char):
         #print(pyautogui.KEYBOARD_KEYS)
         mapeo = {
+            '<': (['shift'], ','),
             '!': (['shift'], '1'),
             '"': (['shift'], '2'),
             '=': (['shift'], '0'),
-            ';': (['shift'], ','),
-            '(': (['shift'], '8'),
-            ')': (['shift'], '9'),
             '$': (['shift'], '4'),
             '?': (['shift'], "/"),
-            ':': (['shift'], '.'),
             '_': (['shift'], '-')
         }
         

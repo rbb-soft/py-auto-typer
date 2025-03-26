@@ -10,4 +10,11 @@
 / barra
 \ barra invertida
 $ pesos
+- menos
+_ guion bajo
+, coma
+; punto y coma
+( parentesis abre
+) parentesis cierra
+
 
