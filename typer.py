@@ -71,17 +71,14 @@ class AutoTyperApp:
         self.text_frame = tk.Frame(self.input_container)
         self.button_frame = tk.Frame(self.text_frame)  # Contenedor para botones
         self.button_frame.pack(pady=5)
-        
         # Botón Pegar desde portapapeles
         self.btn_pegar = tk.Button(self.button_frame, text="📋 Portapapeles", 
                                    command=self.pegar_portapapeles, bg="#FFEB3B")
         self.btn_pegar.pack(side=tk.LEFT, padx=5)
-        
         # Botón Limpiar
         self.btn_limpiar = tk.Button(self.button_frame, text="🧹 Limpiar", 
                                      command=self.limpiar_texto, bg="#FF5722", fg="white")
         self.btn_limpiar.pack(side=tk.LEFT, padx=5)
-        
         self.text_area = scrolledtext.ScrolledText(self.text_frame, wrap=tk.WORD, 
                                                   width=60, height=10)
         self.text_area.pack(padx=5, pady=5)
@@ -119,6 +116,10 @@ class AutoTyperApp:
                                      command=self.detener_tipeo, state=tk.DISABLED,
                                      bg="#f44336", fg="white", font=('Arial', 12))
         self.btn_detener.pack(side=tk.LEFT, padx=10)
+        
+        # Cronómetro
+        self.timer_label = tk.Label(self.frame, text="", fg="#009688", font=('Arial', 14, 'bold'))
+        self.timer_label.pack(pady=10)
         
         # Checkbox logging
         self.log_var = tk.BooleanVar(value=False)
@@ -187,16 +188,31 @@ class AutoTyperApp:
             messagebox.showerror("Error", f"Error al seleccionar archivo: {str(e)}")
 
     def iniciar_tipeo(self):
-        self.stop_flag = False  # Reinicia la bandera
+        self.stop_flag = False
         self.btn_iniciar.config(state=tk.DISABLED)
         self.btn_detener.config(state=tk.NORMAL)
-        self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {self.entry_inicio.get()} segundos...")
-        hilo = threading.Thread(target=self.proceso_tipeo)
-        hilo.daemon = True
-        hilo.start()
+        start_delay = float(self.entry_inicio.get())
+        self.end_time = time.time() + start_delay
+        self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {start_delay} segundos...")
+        self.update_countdown()
+
+    def update_countdown(self):
+        if not self.stop_flag:
+            remaining = max(0, self.end_time - time.time())
+            if remaining > 0:
+                self.timer_label.config(text=f"Tiempo restante: {remaining:.1f} s")
+                self.root.after(100, self.update_countdown)
+            else:
+                self.timer_label.config(text="¡Comenzando!")
+                hilo = threading.Thread(target=self.proceso_tipeo)
+                hilo.daemon = True
+                hilo.start()
+        else:
+            self.restablecer()
 
     def detener_tipeo(self):
         self.stop_flag = True
+        self.timer_label.config(text="")
         self.lbl_estado.config(text="¡Proceso detenido!", fg="red")
         self.root.after(2000, lambda: self.lbl_estado.config(text=""))
         self.btn_detener.config(state=tk.DISABLED)
@@ -216,17 +232,13 @@ class AutoTyperApp:
             total_lineas = len(lineas)
             
             # Configuración tiempos
-            start_delay = float(self.entry_inicio.get())
             action_interval = float(self.entry_intervalo.get())
-            logging.info(f"Iniciando tipeo automático en {start_delay} segundos")
-            time.sleep(start_delay)
+            logging.info("Iniciando tipeo automático")
             self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 🚀"})
             
             for num_linea, linea in enumerate(lineas, 1):
-                # Verifica si se debe detener
                 if self.stop_flag:
                     break
-                
                 logging.debug(f"Escribiendo línea {num_linea}/{total_lineas}")
                 for char in linea:
                     if self.stop_flag:
@@ -249,7 +261,6 @@ class AutoTyperApp:
 
     def tipo_caracter_especial(self, char):
         mapeo = {
-            '<': (['shift'], ','),
             '!': (['shift'], '1'),
             '"': (['shift'], '2'),
             '$': (['shift'], '4'),
@@ -262,8 +273,6 @@ class AutoTyperApp:
             'ú':([], 'u'),
             'ñ':([], 'n'),
             '#':([], '')
-            
-            
         }
         try:
             if char in mapeo:
@@ -271,7 +280,7 @@ class AutoTyperApp:
                 # Presionar modificadores en orden
                 for mod in modificadores:
                     pyautogui.keyDown(mod)
-                    time.sleep(0.03)  # Delay necesario para registrar cada tecla
+                    time.sleep(0.03)
                 # Presionar tecla principal
                 self.play_sound()
                 time.sleep(0.03)
@@ -313,6 +322,7 @@ class AutoTyperApp:
     def limpiar_texto(self):
         self.text_area.delete("1.0", tk.END)
         self.check_input_validity()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
