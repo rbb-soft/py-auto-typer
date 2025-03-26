@@ -77,7 +77,7 @@ class AutoTyperApp:
         self.entry_inicio.insert(0, "5")
         self.entry_inicio.grid(row=0, column=1, padx=5)
         
-        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Intervalo (s):",font=('Arial', 12))
+        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Retardo 'enter' (s):",font=('Arial', 12))
         self.lbl_intervalo.grid(row=0, column=2, padx=5)
         self.entry_intervalo = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
         self.entry_intervalo.insert(0, "0.03")
@@ -195,8 +195,8 @@ class AutoTyperApp:
                 logging.debug(f"Escribiendo línea {num_linea}/{total_lineas}")
                 for char in linea:
                     self.tipo_caracter_especial(char)
-                    time.sleep(action_interval)
-                pyautogui.press('enter', interval=0.8)
+                    time.sleep(0.03)
+                pyautogui.press('enter', interval=action_interval)
             
             logging.info("Tipeo finalizado exitosamente")
             self.root.after(0, self.lbl_estado.config, {"text": "¡Tipeo finalizado!"})
