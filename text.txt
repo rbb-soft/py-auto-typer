@@ -16,5 +16,5 @@ _ guion bajo
 ; punto y coma
 ( parentesis abre
 ) parentesis cierra
-
+= igual
 
