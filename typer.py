@@ -228,6 +228,9 @@ class AutoTyperApp:
                     contenido = f.read()
             else:
                 contenido = self.text_area.get("1.0", tk.END).strip()
+            # === Línea añadida para reemplazar 4 espacios por tabulación ===
+            contenido = contenido.replace('    ', '\t')
+            
             lineas = contenido.splitlines()
             total_lineas = len(lineas)
             
