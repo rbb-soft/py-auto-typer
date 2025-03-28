@@ -11,12 +11,16 @@ class AutoTyperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoTipeador 5.0")
-        self.root.geometry("650x600")
+        self.root.geometry("650x680")
         
         # Variables de control
         self.input_mode = tk.StringVar(value="text")  # 'file' o 'text'
         self.file_path = None
-        self.stop_flag = False  # Bandera para detener el proceso
+        self.stop_flag = False
+        
+        # Nuevas variables de control
+        self.typing_speed = tk.DoubleVar(value=0.03)  # Velocidad en segundos por caracter
+        self.volume_level = tk.DoubleVar(value=0.5)   # Nivel de volumen (0.0 - 1.0)
         
         # Configuración de logging
         self.logger = logging.getLogger()
@@ -34,7 +38,7 @@ class AutoTyperApp:
         self.sound_enabled = tk.BooleanVar(value=True)
         try:
             self.typing_sound = pygame.mixer.Sound("key.mp3") 
-            self.typing_sound.set_volume(0.05)
+            self.typing_sound.set_volume(0.5)
         except Exception as e:
             logging.warning(f"No se pudo cargar el archivo de sonido: {str(e)}")
             self.typing_sound = None
@@ -69,13 +73,11 @@ class AutoTyperApp:
         
         # Modo texto
         self.text_frame = tk.Frame(self.input_container)
-        self.button_frame = tk.Frame(self.text_frame)  # Contenedor para botones
+        self.button_frame = tk.Frame(self.text_frame)
         self.button_frame.pack(pady=5)
-        # Botón Pegar desde portapapeles
         self.btn_pegar = tk.Button(self.button_frame, text="📋 Portapapeles", 
                                    command=self.pegar_portapapeles, bg="#FFEB3B")
         self.btn_pegar.pack(side=tk.LEFT, padx=5)
-        # Botón Limpiar
         self.btn_limpiar = tk.Button(self.button_frame, text="🧹 Limpiar", 
                                      command=self.limpiar_texto, bg="#FF5722", fg="white")
         self.btn_limpiar.pack(side=tk.LEFT, padx=5)
@@ -83,29 +85,50 @@ class AutoTyperApp:
                                                   width=60, height=10)
         self.text_area.pack(padx=5, pady=5)
         self.text_area.bind("<KeyRelease>", self.check_text_validity)
-        self.text_area.bind("<ButtonRelease>", self.check_text_validity)  # Detectar pegado con mouse
+        self.text_area.bind("<ButtonRelease>", self.check_text_validity)
         
-        # Opciones de tiempo
-        self.frame_opciones = tk.Frame(self.frame)
-        self.frame_opciones.pack(pady=15)
-        vcmd = (self.root.register(self.validate_number), '%P')
-        self.lbl_inicio = tk.Label(self.frame_opciones, text="Tiempo inicio (s):", font=('Arial', 12))
+        # Opciones avanzadas
+        self.advanced_frame = tk.LabelFrame(self.frame, text="Configuración avanzada", padx=10, pady=10)
+        self.advanced_frame.pack(pady=10, fill="x")
+        
+        # Tiempo inicio
+        self.lbl_inicio = tk.Label(self.advanced_frame, text="Tiempo inicio (s):", font=('Arial', 12))
         self.lbl_inicio.grid(row=0, column=0, padx=5)
-        self.entry_inicio = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
+        vcmd = (self.root.register(self.validate_number), '%P')
+        self.entry_inicio = tk.Entry(self.advanced_frame, width=5, validate="key", validatecommand=vcmd)
         self.entry_inicio.insert(0, "5")
         self.entry_inicio.grid(row=0, column=1, padx=5)
-        self.lbl_intervalo = tk.Label(self.frame_opciones, text="Retardo 'enter' (s):", font=('Arial', 12))
+        
+        # Retardo enter
+        self.lbl_intervalo = tk.Label(self.advanced_frame, text="Retardo 'enter' (s):", font=('Arial', 12))
         self.lbl_intervalo.grid(row=0, column=2, padx=5)
-        self.entry_intervalo = tk.Entry(self.frame_opciones, width=5, validate="key", validatecommand=vcmd)
+        self.entry_intervalo = tk.Entry(self.advanced_frame, width=5, validate="key", validatecommand=vcmd)
         self.entry_intervalo.insert(0, "1.00")
         self.entry_intervalo.grid(row=0, column=3, padx=5)
+        
+        # Velocidad de tipeo
+        self.lbl_speed = tk.Label(self.advanced_frame, text="Velocidad (s/tecla):", font=('Arial', 12))
+        self.lbl_speed.grid(row=1, column=0, padx=5)
+        self.scale_speed = tk.Scale(self.advanced_frame, from_=0.01, to=0.5, resolution=0.01,
+                                   orient=tk.HORIZONTAL, variable=self.typing_speed)
+        self.scale_speed.set(0.03)
+        self.scale_speed.grid(row=1, column=1, columnspan=3, sticky='ew', padx=5)
+        
+        # Volumen
+        self.lbl_volume = tk.Label(self.advanced_frame, text="Volumen:", font=('Arial', 12))
+        self.lbl_volume.grid(row=2, column=0, padx=5)
+        self.scale_volume = tk.Scale(self.advanced_frame, from_=0.0, to=1.0, resolution=0.05,
+                                    orient=tk.HORIZONTAL, variable=self.volume_level,
+                                    command=self.update_volume)
+        self.scale_volume.set(0.5)
+        self.scale_volume.grid(row=2, column=1, columnspan=3, sticky='ew', padx=5)
         
         # Checkbox de sonido
         self.chk_sound = tk.Checkbutton(self.frame, text="Habilitar sonido de tecleo", 
                                         variable=self.sound_enabled, font=('Arial', 12))
         self.chk_sound.pack(pady=5)
         
-        # Botón iniciar y detener
+        # Botones iniciar y detener
         self.btn_frame = tk.Frame(self.frame)
         self.btn_frame.pack(pady=10)
         self.btn_iniciar = tk.Button(self.btn_frame, text="Iniciar tipeo", 
@@ -134,7 +157,6 @@ class AutoTyperApp:
 
     def toggle_input_mode(self):
         mode = self.input_mode.get()
-        # Ocultar todos
         self.file_frame.pack_forget()
         self.text_frame.pack_forget()
         if mode == "file":
@@ -220,7 +242,6 @@ class AutoTyperApp:
 
     def proceso_tipeo(self):
         try:
-            # Obtener contenido
             if self.input_mode.get() == "file":
                 if not self.file_path:
                     raise ValueError("Archivo no seleccionado")
@@ -228,17 +249,16 @@ class AutoTyperApp:
                     contenido = f.read()
             else:
                 contenido = self.text_area.get("1.0", tk.END).strip()
-            # === Línea añadida para reemplazar 4 espacios por tabulación ===
-            contenido = contenido.replace('    ', '\t')
             
+            contenido = contenido.replace('    ', '\t')
             lineas = contenido.splitlines()
             total_lineas = len(lineas)
             
-            # Configuración tiempos
             action_interval = float(self.entry_intervalo.get())
-            logging.info("Iniciando tipeo automático")
-            self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 🚀"})
+            char_delay = self.typing_speed.get()
+            logging.info(f"Iniciando tipeo automático con velocidad: {char_delay}s/tecla")
             
+            self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 💻"})
             for num_linea, linea in enumerate(lineas, 1):
                 if self.stop_flag:
                     break
@@ -247,7 +267,7 @@ class AutoTyperApp:
                     if self.stop_flag:
                         break
                     self.tipo_caracter_especial(char)
-                    time.sleep(0.03)
+                    time.sleep(char_delay)
                 if self.stop_flag:
                     break
                 pyautogui.press('enter', interval=action_interval)
@@ -280,23 +300,20 @@ class AutoTyperApp:
         try:
             if char in mapeo:
                 modificadores, tecla = mapeo[char]
-                # Presionar modificadores en orden
                 for mod in modificadores:
                     pyautogui.keyDown(mod)
-                    time.sleep(0.03)
-                # Presionar tecla principal
+                    time.sleep(0.01)
                 self.play_sound()
-                time.sleep(0.03)
+                time.sleep(0.01)
                 pyautogui.press(tecla)
-                time.sleep(0.03)
-                # Soltar modificadores en orden inverso
+                time.sleep(0.01)
                 for mod in reversed(modificadores):
                     pyautogui.keyUp(mod)
                     time.sleep(0.01)
             else:
                 self.play_sound()
                 pyautogui.write(char)
-                time.sleep(0.03)
+                time.sleep(0.01)
         except Exception as e:
             logging.error(f"Error al escribir caracter: {char}", exc_info=True)
             raise
@@ -305,9 +322,19 @@ class AutoTyperApp:
         """Reproduce el sonido si está habilitado"""
         if self.sound_enabled.get() and self.typing_sound:
             try:
-                self.typing_sound.play()
+                pygame.mixer.Channel(0).play(self.typing_sound)
             except Exception as e:
                 logging.warning(f"Error al reproducir sonido: {str(e)}")
+
+    def update_volume(self, value):
+        """Actualiza el volumen del canal de sonido"""
+        try:
+            volume = self.volume_level.get()
+            pygame.mixer.Channel(0).set_volume(volume)
+            if self.typing_sound:
+                self.typing_sound.set_volume(volume)
+        except Exception as e:
+            logging.warning(f"Error al ajustar volumen: {str(e)}")
 
     def restablecer(self):
         self.root.after(0, self.lbl_estado.config, {"text": ""})
@@ -325,7 +352,6 @@ class AutoTyperApp:
     def limpiar_texto(self):
         self.text_area.delete("1.0", tk.END)
         self.check_input_validity()
-
 
 if __name__ == "__main__":
     root = tk.Tk()
