@@ -11,16 +11,15 @@ class AutoTyperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AutoTipeador 5.0")
-        self.root.geometry("650x680")
+        self.root.geometry("650x720")
         
         # Variables de control
         self.input_mode = tk.StringVar(value="text")  # 'file' o 'text'
         self.file_path = None
-        self.stop_flag = False
-        
-        # Nuevas variables de control
-        self.typing_speed = tk.DoubleVar(value=0.03)  # Velocidad en segundos por caracter
-        self.volume_level = tk.DoubleVar(value=0.5)   # Nivel de volumen (0.0 - 1.0)
+        self.stop_flag = False  # Bandera para detener el proceso
+        self.process_state = tk.StringVar(value="stopped")  # 'running', 'paused', 'resuming', 'stopped'
+        self.pause_event = threading.Event()
+        self.pause_event.set()  # Inicia sin pausa
         
         # Configuración de logging
         self.logger = logging.getLogger()
@@ -38,10 +37,14 @@ class AutoTyperApp:
         self.sound_enabled = tk.BooleanVar(value=True)
         try:
             self.typing_sound = pygame.mixer.Sound("key.mp3") 
-            self.typing_sound.set_volume(0.5)
+            self.typing_sound.set_volume(0.5)  # Volumen inicial
         except Exception as e:
             logging.warning(f"No se pudo cargar el archivo de sonido: {str(e)}")
             self.typing_sound = None
+        
+        # Variables de configuración
+        self.typing_speed = tk.DoubleVar(value=0.03)  # Velocidad en segundos por caracter
+        self.volume_level = tk.DoubleVar(value=0.5)   # Nivel de volumen (0.0 - 1.0)
         
         # Interfaz gráfica
         self.frame = tk.Frame(root, padx=20, pady=20)
@@ -128,17 +131,21 @@ class AutoTyperApp:
                                         variable=self.sound_enabled, font=('Arial', 12))
         self.chk_sound.pack(pady=5)
         
-        # Botones iniciar y detener
+        # Botones iniciar, pausar y detener
         self.btn_frame = tk.Frame(self.frame)
         self.btn_frame.pack(pady=10)
         self.btn_iniciar = tk.Button(self.btn_frame, text="Iniciar tipeo", 
                                      command=self.iniciar_tipeo, state=tk.DISABLED,
                                      bg="#2196F3", fg="black", font=('Arial', 12))
-        self.btn_iniciar.pack(side=tk.LEFT, padx=10)
+        self.btn_iniciar.pack(side=tk.LEFT, padx=5)
+        self.btn_pausa = tk.Button(self.btn_frame, text="Pausar", 
+                                   command=self.toggle_pausa, state=tk.DISABLED,
+                                   bg="#FFA726", fg="black", font=('Arial', 12))
+        self.btn_pausa.pack(side=tk.LEFT, padx=5)
         self.btn_detener = tk.Button(self.btn_frame, text="Detener", 
                                      command=self.detener_tipeo, state=tk.DISABLED,
                                      bg="#f44336", fg="white", font=('Arial', 12))
-        self.btn_detener.pack(side=tk.LEFT, padx=10)
+        self.btn_detener.pack(side=tk.LEFT, padx=5)
         
         # Cronómetro
         self.timer_label = tk.Label(self.frame, text="", fg="#009688", font=('Arial', 14, 'bold'))
@@ -211,34 +218,62 @@ class AutoTyperApp:
 
     def iniciar_tipeo(self):
         self.stop_flag = False
+        self.process_state.set("running")
         self.btn_iniciar.config(state=tk.DISABLED)
         self.btn_detener.config(state=tk.NORMAL)
+        self.btn_pausa.config(state=tk.NORMAL)
         start_delay = float(self.entry_inicio.get())
         self.end_time = time.time() + start_delay
         self.lbl_estado.config(text=f"¡Prepárate! Comenzando en {start_delay} segundos...")
         self.update_countdown()
 
     def update_countdown(self):
-        if not self.stop_flag:
-            remaining = max(0, self.end_time - time.time())
-            if remaining > 0:
-                self.timer_label.config(text=f"Tiempo restante: {remaining:.1f} s")
-                self.root.after(100, self.update_countdown)
+        current_state = self.process_state.get()
+        if current_state == "stopped":
+            self.restablecer()
+            return
+            
+        remaining = max(0, self.end_time - time.time())
+        if remaining > 0:
+            self.timer_label.config(text=f"Tiempo restante: {remaining:.1f} s")
+            self.root.after(100, self.update_countdown)
+        else:
+            if current_state == "resuming":
+                self.timer_label.config(text="¡Reanudando!")
+                self.process_state.set("running")
+                self.btn_pausa.config(text="Pausar", bg="#FFA726")
+                self.lbl_estado.config(text="Escribiendo código... 💻", fg="#009688")
             else:
                 self.timer_label.config(text="¡Comenzando!")
                 hilo = threading.Thread(target=self.proceso_tipeo)
                 hilo.daemon = True
                 hilo.start()
-        else:
-            self.restablecer()
+
+    def toggle_pausa(self):
+        if self.process_state.get() == "running":
+            self.process_state.set("paused")
+            self.pause_event.clear()
+            self.btn_pausa.config(text="Continuar", bg="#4CAF50")
+            self.lbl_estado.config(text="Proceso pausado ⏸", fg="#FFA726")
+        elif self.process_state.get() == "paused":
+            start_delay = float(self.entry_inicio.get())
+            self.end_time = time.time() + start_delay
+            self.process_state.set("resuming")
+            self.pause_event.set()
+            self.lbl_estado.config(text=f"¡Prepárate! Reanudando en {start_delay:.1f} segundos...")
+            self.timer_label.config(text="")
+            self.update_countdown()
 
     def detener_tipeo(self):
+        self.process_state.set("stopped")
+        self.pause_event.set()  # Libera cualquier pausa
         self.stop_flag = True
         self.timer_label.config(text="")
         self.lbl_estado.config(text="¡Proceso detenido!", fg="red")
         self.root.after(2000, lambda: self.lbl_estado.config(text=""))
         self.btn_detener.config(state=tk.DISABLED)
         self.btn_iniciar.config(state=tk.NORMAL)
+        self.btn_pausa.config(state=tk.DISABLED, text="Pausar", bg="#FFA726")
 
     def proceso_tipeo(self):
         try:
@@ -260,15 +295,24 @@ class AutoTyperApp:
             
             self.root.after(0, self.lbl_estado.config, {"text": "¡Escribiendo código... 💻"})
             for num_linea, linea in enumerate(lineas, 1):
-                if self.stop_flag:
+                while self.process_state.get() in ["paused", "resuming"]:
+                    self.pause_event.wait()  # Espera activa
+                    
+                if self.process_state.get() == "stopped":
                     break
+                
                 logging.debug(f"Escribiendo línea {num_linea}/{total_lineas}")
                 for char in linea:
-                    if self.stop_flag:
+                    while self.process_state.get() in ["paused", "resuming"]:
+                        self.pause_event.wait()  # Pausa entre caracteres si es necesario
+                        
+                    if self.process_state.get() == "stopped":
                         break
+                    
                     self.tipo_caracter_especial(char)
                     time.sleep(char_delay)
-                if self.stop_flag:
+                
+                if self.process_state.get() == "stopped":
                     break
                 pyautogui.press('enter', interval=action_interval)
             
@@ -277,6 +321,7 @@ class AutoTyperApp:
             self.root.after(2000, self.lbl_estado.config, {"text": ""})
             self.root.after(0, self.btn_iniciar.config, {"state": tk.NORMAL})
             self.root.after(0, self.btn_detener.config, {"state": tk.DISABLED})
+            self.root.after(0, self.btn_pausa.config, {"state": tk.DISABLED, "text": "Pausar", "bg": "#FFA726"})
         except Exception as e:
             logging.error("Error durante el tipeo", exc_info=True)
             messagebox.showerror("Error", f"Ocurrió un error: {str(e)}")
@@ -295,7 +340,7 @@ class AutoTyperApp:
             'ó':([], 'o'),
             'ú':([], 'u'),
             'ñ':([], 'n'),
-            '#':([], '')
+            '#':(['shift'], '~')
         }
         try:
             if char in mapeo:
@@ -322,7 +367,7 @@ class AutoTyperApp:
         """Reproduce el sonido si está habilitado"""
         if self.sound_enabled.get() and self.typing_sound:
             try:
-                pygame.mixer.Channel(0).play(self.typing_sound)
+                self.typing_sound.play()
             except Exception as e:
                 logging.warning(f"Error al reproducir sonido: {str(e)}")
 
@@ -330,7 +375,6 @@ class AutoTyperApp:
         """Actualiza el volumen del canal de sonido"""
         try:
             volume = self.volume_level.get()
-            pygame.mixer.Channel(0).set_volume(volume)
             if self.typing_sound:
                 self.typing_sound.set_volume(volume)
         except Exception as e:
@@ -340,6 +384,9 @@ class AutoTyperApp:
         self.root.after(0, self.lbl_estado.config, {"text": ""})
         self.root.after(0, self.btn_iniciar.config, {"state": tk.NORMAL})
         self.root.after(0, self.btn_detener.config, {"state": tk.DISABLED})
+        self.root.after(0, self.btn_pausa.config, {"state": tk.DISABLED, "text": "Pausar", "bg": "#FFA726"})
+        self.process_state.set("stopped")
+        self.pause_event.set()
 
     def pegar_portapapeles(self):
         try:

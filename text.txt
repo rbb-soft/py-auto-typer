@@ -1,27 +1,27 @@
-< menor
-> mayor
-{ llave abre
-} llave cierra
-[ corchete abre
-] corchete cierra
-? interrogacion
-" comillas dobles
-' comillas simples
-/ barra
-\ barra invertida
-$ pesos
-- menos
-_ guion bajo
-, coma
-; punto y coma
-( parentesis abre
-) parentesis cierra
-= igual
-# numeral
-á a
-é e
-í i
-ó o
-ú u
-ñ enie
+<	menor
+>	mayor
+{	llave abre
+}	llave cierra
+[	corchete abre
+]	corchete cierra
+?	interrogacion
+"	comillas dobles
+'	comillas simples
+/	barra
+\	barra invertida
+$	pesos
+-	menos
+_	guion bajo
+,	coma
+;	punto y coma
+(	parentesis abre
+)	parentesis cierra
+=	igual
+#	numeral
+á	a
+é	e
+í	i
+ó	o
+ú	u
+ñ	enie
 
