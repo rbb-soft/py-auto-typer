@@ -123,7 +123,7 @@ class AutoTyperApp:
         self.scale_volume = tk.Scale(self.advanced_frame, from_=0.0, to=1.0, resolution=0.05,
                                     orient=tk.HORIZONTAL, variable=self.volume_level,
                                     command=self.update_volume)
-        self.scale_volume.set(0.5)
+        self.scale_volume.set(0.1)
         self.scale_volume.grid(row=2, column=1, columnspan=3, sticky='ew', padx=5)
         
         # Checkbox de sonido
